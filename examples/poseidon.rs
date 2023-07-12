@@ -1,5 +1,10 @@
 use clap::Parser;
-use halo2_base::{gates::GateChip, utils::ScalarField, AssignedValue, Context};
+use halo2_base::{
+    gates::GateChip,
+    safe_types::{RangeChip, RangeInstructions},
+    utils::ScalarField,
+    AssignedValue, Context,
+};
 use halo2_scaffold::scaffold::{cmd::Cli, run};
 use poseidon::PoseidonChip;
 use serde::{Deserialize, Serialize};
@@ -28,10 +33,13 @@ fn hash_two<F: ScalarField>(
 
     // create a Gate chip that contains methods for basic arithmetic operations
     let gate = GateChip::<F>::default();
+    let range_gate = RangeChip::<F>::default(15);
     let mut poseidon = PoseidonChip::<F, T, RATE>::new(ctx, R_F, R_P).unwrap();
     poseidon.update(&[x, y]);
     let hash = poseidon.squeeze(ctx, &gate).unwrap();
     make_public.push(hash);
+    let small_mod: usize = 1 << 16;
+    let (_, r) = range_gate.div_mod(ctx, hash, small_mod, F::NUM_BITS as usize);
     println!("x: {:?}, y: {:?}, poseidon(x): {:?}", x.value(), y.value(), hash.value());
 }
 
